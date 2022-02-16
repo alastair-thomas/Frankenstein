@@ -26,10 +26,18 @@ for (j in 1:ncol(x)) {
 d <- dist(X)
 pts <- cmdscale(d)
 
+df <- data.frame(cbind(pts, M$authornames))
 #need to make this plot look better using ggplot
-plot(pts, type='n')
-text(pts[,1],pts[,2],label=M$authornames,cex=0.8)
+colnames(df) <- c('x', 'y', 'Author')
+df[,1:2] <- sapply(df[, 1:2], as.numeric)
 
+ggplot(data=df, aes(x, y, colour = Author, label = Author)) + 
+  geom_point() +
+  ggtitle('MDS Scaling Plot for each Author') +
+  geom_text(hjust=0.5, vjust=-0.5) +
+  theme(legend.position="none") +
+  xlim(-10, 10) +
+  ylim(-6, 8)
 
 
   
