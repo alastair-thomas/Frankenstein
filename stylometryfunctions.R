@@ -3,6 +3,10 @@
 
 library(class)
 library(caret)
+library(randomForest)
+library(e1071)
+library(ggplot2)
+
 
 #load in a literary corpus. Filedir should be the directory of the function words, which contains one folder for
 #each author. The 'featureset' argument denotes the type of features that should be used
@@ -13,7 +17,7 @@ loadCorpus <- function(filedir,featureset="functionwords",maxauthors=Inf) {
   count <- 0
   
   for (i in 1:length(authornames)) {
-    #print(i)
+
     if (count >= maxauthors) {break}
     files <- list.files(sprintf("%s%s/",filedir,authornames[i]))
     if (length(files)==0) {next}
@@ -25,6 +29,8 @@ loadCorpus <- function(filedir,featureset="functionwords",maxauthors=Inf) {
       
       fields <- strsplit(files[j],split=' --- ')[[1]]  
       
+      if (is.na(fields[2])) {break}
+            
       if (sprintf("%s.txt",featureset) == fields[2]) {
         booknames[[i]] <- c(booknames[[i]], fields[1])
         count <- count+1
@@ -62,6 +68,8 @@ myKNN <- function(traindata, testdata, trainlabels, k=1) {
   }
   
   preds <- knn(traindata, testdata, trainlabels, k)
+  
+  
   return(preds)
 }
 
@@ -69,17 +77,18 @@ discriminantCorpus <- function(traindata, testdata) {
   thetas <- NULL
   preds <- NULL
   
-  #first learn thea model for each aauthor
+  #first learn the model for each author
   for (i in 1:length(traindata)) {
     words <- apply(traindata[[i]],2,sum)
     
-    #some words might never occur. This will be a problem since it will mean the theta for this word is 0, which means the likelihood will be 0 if this word occurs in the training set. So, we force each word to occur at leats once
+    #some words might never occur. This will be a problem since it will mean the theta for this word is 0, which means the likelihood will be 0 if this word occurs in the training set. So, we force each word to occur at least once
     inds <- which(words==0) 
     if (length(inds) > 0) {words[inds] <- 1}
     thetas <- rbind(thetas, words/sum(words))
   }
   
   #now classify
+  
   for (i in 1:nrow(testdata)) {
     probs <- NULL
     for (j in 1:nrow(thetas)) {
@@ -87,11 +96,42 @@ discriminantCorpus <- function(traindata, testdata) {
     }
     preds <- c(preds, which.max(probs))
   }
+  
+  
   return(preds)
 }
 
+#calculates Brier score, takes in a matrix,
+#each row is log probabilities from predicting one test
+#This was never used and not sure if works?
+Brier_Score <- function(probs){
+  BS <- 0
+  N <- nrow(probs)
+  R <- ncol(probs)
+  
+  for (t in 1:N){
+    for (i in 1:R){
+      
+      if (i == t) {
+        sigma = 1
+      }
+      else {
+        sigma = 0
+      }
+      
+      print(exp(probs[t,i]))
+      print(sigma)
+      BS <- BS + (probs[t,i] - sigma)^2
+    }
+  }
+  
+  BS <- BS / N
+  
+  return(BS)
+}
 
-KNNCorpus <- function(traindata, testdata) {
+
+KNNCorpus <- function(traindata, testdata, k=1) {
   train <- NULL
   for (i in 1:length(traindata)) {
     train <- rbind(train, apply(traindata[[i]],2,sum))
@@ -104,7 +144,7 @@ KNNCorpus <- function(traindata, testdata) {
     testdata[i,] <- testdata[i,]/sum(testdata[i,])
   }
   trainlabels <- 1:nrow(train)
-  myKNN(train, testdata, trainlabels,k=1)
+  myKNN(train, testdata, trainlabels,k=k)
 }
 
 randomForestCorpus <- function(traindata, testdata) {
@@ -131,7 +171,7 @@ randomForestCorpus <- function(traindata, testdata) {
   }
   
   y <- as.factor(y)
-  rf <- randomForest(x,y)
+  rf <- randomForest(x,y, ntree=40)
   
   preds <- numeric(nrow(testdata))
   for (i in 1:nrow(testdata)) {
