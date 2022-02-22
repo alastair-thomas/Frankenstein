@@ -157,3 +157,10 @@ colnames(new_row) <- c('Discriminant Analysis',
 results_df <- rbind(results_df, new_row)
 rownames(results_df) <- c('Accuracy %', 'Kappa Coefficient %', 'Frankenstein Prediction')
 View(results_df)
+
+#prints out the confusion matricies and all that data
+print(cmKNN)
+print(cmDISC)
+print(cmRF)
+print(cmSVM)
+
